@@ -1,7 +1,7 @@
 from argparse import ArgumentParser
 import re
 from pathlib import Path
-
+from datetime import datetime
 
 def parse_arguments():
     parser = ArgumentParser(description="Wrapper Script für psteal von Plaso")
@@ -22,6 +22,27 @@ def parse_arguments():
     return parser.parse_args()
 
 
+def check_args_output(output):
+    # check output exists
+    if output is None:
+        output = input("Output fehlt: Pfad und Name der Ziel CSV angeben oder leer lassen für standard Name\n")
+        if output == "":
+            output = "Supertimeline_" + str(datetime.date(datetime.now())) + ".csv"
+
+    # check if valid output path
+    search = re.search(r"(?:.*[/\\])?(.*\.(?:csv|CSV))", output)
+    if search is None:
+        print("Sicher dass das ein valider CSV outputpfad ist? -> EXIT")
+        exit(3)
+
+    path = Path(output)
+    if path.is_file():
+        print("Angegebene Ouput Datei existiert bereits -> EXIT")
+        exit(4)
+    return output
+
+
+
 def check_arguments(args):
     args.input = check_args_input(args.input)
 
@@ -29,12 +50,14 @@ def check_arguments(args):
     if args.quiet:
         return args
 
+    args.output = check_args_output(args.output)
+
 
 def check_args_input(inp):
     # check input exists
     if inp is None:
         inp = input("Input fehlt: Bitte Pfad der Zip oder des Ordners angeben\n")
-    # check input is valid ZIP
+    # check input is valid
     search = re.search(r".*[/\\](.*\.(?:zip|ZIP))", inp)
     path = Path(inp)
     if search is not None:
