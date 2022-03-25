@@ -3,6 +3,7 @@ import re
 from pathlib import Path
 from datetime import datetime
 
+
 def parse_arguments():
     parser = ArgumentParser(description="Wrapper Script für psteal von Plaso")
     parser.add_argument("-i", "--input", dest="input",
@@ -42,15 +43,32 @@ def check_args_output(output):
     return output
 
 
+def check_args_time(start_time):
+    # check start time exists
+    if start_time is None:
+        start_time = input("Startzeit fehlt: Bitte Startzeit angeben (Format: YYYY-MM-DD HH-MM-SS)\n")
+
+    # check start time is valid
+    search = re.search(r"(\d{4}-\d{2}-\d{2} \d{2}-\d{2}-\d{2})", start_time)
+
+    # convert input to datetime object and check if valid
+    if search is None:
+        print("Angegebene Startzeit ist ungültig -> EXIT")
+        exit(5)
+    start_time = datetime.strptime(start_time, "%Y-%m-%d %H-%M-%S")
+
+    return start_time
+
 
 def check_arguments(args):
     args.input = check_args_input(args.input)
 
-    # bei quiet nicht nach args fragen
+    # bei quiet nicht nach optionalen args fragen
     if args.quiet:
         return args
 
     args.output = check_args_output(args.output)
+    args.start_time = check_args_time(args.start_time)
 
 
 def check_args_input(inp):
