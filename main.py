@@ -43,32 +43,66 @@ def check_args_output(output):
     return output
 
 
-def check_args_time(start_time):
+def check_args_time(timestamp, end_time=False):
+    # create text variables
+    if end_time:
+        start_var = "Endzeit"
+    else:
+        start_var = "Startzeit"
+
     # check start time exists
-    if start_time is None:
-        start_time = input("Startzeit fehlt: Bitte Startzeit angeben (Format: YYYY-MM-DD HH-MM-SS)\n")
+    if timestamp is None:
+        timestamp = input(f"{start_var} fehlt: Bitte {start_var} angeben (Format: YYYY-MM-DD HH-MM-SS)\n")
 
     # check start time is valid
-    search = re.search(r"(\d{4}-\d{2}-\d{2} \d{2}-\d{2}-\d{2})", start_time)
+    search = re.search(r"(\d{4}-\d{2}-\d{2} \d{2}-\d{2}-\d{2})", timestamp)
 
     # convert input to datetime object and check if valid
     if search is None:
-        print("Angegebene Startzeit ist ungültig -> EXIT")
+        print(f"Angegebene {start_var} ist ungültig -> EXIT")
         exit(5)
-    start_time = datetime.strptime(start_time, "%Y-%m-%d %H-%M-%S")
+    timestamp = datetime.strptime(timestamp, "%Y-%m-%d %H-%M-%S")
 
-    return start_time
+    return timestamp
+
+
+def check_args_password(password):
+    # check password exists
+    if password is None:
+        password = input(
+            "Passwort fehlt: Bitte Passwort angeben oder leer lassen falls Input-ZIP kein Passwort benötigt\n")
+        if password == "":
+            return None
+    return password
+
+
+def check_args_mail(mail):
+    # check mail exists
+    if mail is None:
+        mail = input("Mailadresse fehlt: Bitte Mailadresse angeben oder leer lassen falls keine Mailadresse benötigt\n")
+
+    # check mail is valid
+    search = re.search(r"([a-zA-Z0-9_.+-]+@lsi\.bayern\.de)", mail)
+    if search is None:
+        print("Angegebene Mailadresse ist ungültig oder keine LSI Adresse -> EXIT")
+        exit(6)
+
+    return mail
 
 
 def check_arguments(args):
     args.input = check_args_input(args.input)
 
-    # bei quiet nicht nach optionalen args fragen
+    # dont ask for args if quiet
     if args.quiet:
         return args
 
+    # ask for optional arguments
     args.output = check_args_output(args.output)
     args.start_time = check_args_time(args.start_time)
+    args.end_time = check_args_time(args.end_time, end_time=True)
+    args.password = check_args_password(args.password)
+    args.mail = check_args_mail(args.mail)
 
 
 def check_args_input(inp):
