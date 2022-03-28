@@ -7,7 +7,7 @@ from email import encoders
 from email.mime.base import MIMEBase
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from email.utils import COMMASPACE, formatdate
+from email.utils import formatdate
 from pathlib import Path
 from datetime import datetime
 import zipfile
@@ -21,17 +21,17 @@ def parse_arguments():
     parser.add_argument("-i", "--input", dest="input",
                         help="Pfad zu input ZIP oder Ordner")
     parser.add_argument("-o", "--output", dest="output",
-                        help="pfad und Name der csv Timline")
+                        help="pfad und Name der csv Timeline")
     parser.add_argument("-s", "--start_time", dest="start_time",
-                        help="Zeiptunkt ab dem die Supertimeline beginnen soll (Format: YYYY-MM-DD HH-MM-SS)")
+                        help="Zeitpunkt ab dem die Supertimeline beginnen soll (Format: YYYY-MM-DD HH-MM-SS)")
     parser.add_argument("-e", "--end_time", dest="end_time",
-                        help="Zeiptunkt ab dem die Supertimeline enden soll (Format: YYYY-MM-DD HH-MM-SS)")
+                        help="Zeitpunkt ab dem die Supertimeline enden soll (Format: YYYY-MM-DD HH-MM-SS)")
     parser.add_argument("-p", "--password", dest="password",
                         help="Passwort des zip Archivs")
     parser.add_argument("-m", "--mail_addr", dest="mail",
                         help="Mailadresse für Empfangen des Logs / Statusmeldung")
     parser.add_argument("-q", "--quiet", dest="quiet", action="store_true",
-                        help="Script frägt bei optionalen Argumenten NICHT nach")
+                        help="Script fragt bei optionalen Argumenten NICHT nach")
     return parser.parse_args()
 
 
@@ -46,12 +46,12 @@ def check_args_output(output):
     # check if valid output path
     search = re.search(r"(?:.*[/\\])?(.*\.(?:csv|CSV))", output)
     if search is None:
-        print("Sicher dass das ein valider CSV outputpfad ist? -> EXIT")
+        print("Sicher dass das ein valider CSV output pfad ist? -> EXIT")
         exit(3)
 
     path = Path(output)
     if path.is_file():
-        print("Angegebene Ouput Datei existiert bereits -> EXIT")
+        print("Angegebene Output Datei existiert bereits -> EXIT")
         exit(4)
     return output
 
@@ -235,7 +235,7 @@ def send_mail(send_to, files=None):
 
     msg = MIMEMultipart()
     msg['From'] = "SENDER"
-    msg['To'] = COMMASPACE.join(send_to)
+    msg['To'] = send_to
     msg['Date'] = formatdate(localtime=True)
     msg['Subject'] = "PLASO STATUS REPORT"
 
@@ -250,8 +250,8 @@ def send_mail(send_to, files=None):
                         'attachment; filename={}'.format(Path(path).name))
         msg.attach(part)
 
-    smtp = smtplib.SMTP("SMTPSERVEREINFÜGEN", 25) # todo: SMTP-Server einfügen
-    smtp.sendmail("send_from", send_to, msg.as_string()) # todo: send_from einfügen
+    smtp = smtplib.SMTP("SMTP SERVER EINFÜGEN", 25)  # todo: SMTP-Server einfügen
+    smtp.sendmail("send_from", send_to, msg.as_string())  # todo: send_from einfügen
     smtp.quit()
 
 
