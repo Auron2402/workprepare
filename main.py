@@ -3,10 +3,17 @@ import smtplib
 import subprocess
 from argparse import ArgumentParser
 import re
+from email import encoders
+from email.mime.base import MIMEBase
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.utils import COMMASPACE, formatdate
 from pathlib import Path
 from datetime import datetime
 import zipfile
 import tempfile
+import logging
+from time import sleep
 
 
 def parse_arguments():
@@ -34,6 +41,7 @@ def check_args_output(output):
         output = input("Output fehlt: Pfad und Name der Ziel CSV angeben oder leer lassen für standard Name\n")
         if output == "":
             output = "Supertimeline_" + str(datetime.date(datetime.now())) + ".csv"
+    logging.info(f"Output: {output}")
 
     # check if valid output path
     search = re.search(r"(?:.*[/\\])?(.*\.(?:csv|CSV))", output)
@@ -61,6 +69,7 @@ def check_args_time(timestamp, end_time=False):
                           f"lassen\n")
         if timestamp == "":
             return None
+    logging.info(f"{start_var}: {timestamp}")
 
     # check start time is valid
     search = re.search(r"(\d{4}-\d{2}-\d{2} \d{2}-\d{2}-\d{2})", timestamp)
@@ -80,7 +89,9 @@ def check_args_password(password):
         password = input(
             "Passwort fehlt: Bitte Passwort angeben oder leer lassen falls Input-ZIP kein Passwort benötigt\n")
         if password == "":
+            logging.info("Kein Passwort angegeben")
             return None
+    logging.info(f"Passwort: Ich log das Passwort lieber nicht")
     return password
 
 
@@ -90,6 +101,7 @@ def check_args_mail(mail):
         mail = input("Mailadresse fehlt: Bitte Mailadresse angeben oder leer lassen falls keine Log-Mail benötigt\n")
         if mail == "":
             return None
+    logging.info(f"Mailadresse: {mail}")
 
     # check mail is valid
     search = re.search(r"([a-zA-Z0-9_.+-]+@lsi\.bayern\.de)", mail)
@@ -120,6 +132,8 @@ def check_args_input(inp):
     # check input exists
     if inp is None:
         inp = input("Input fehlt: Bitte Pfad der Zip oder des Ordners angeben\n")
+    logging.info(f"Input: {inp}")
+
     # check input is valid
     search = re.search(r".*[/\\](.*\.(?:zip|ZIP))", inp)
     path = Path(inp)
@@ -138,6 +152,7 @@ def unzip_files(input_path, password):
     # create temp directory
     temp_dir = tempfile.TemporaryDirectory()
     temp_dir_path = Path(temp_dir.name)
+    logging.info(f"Temp ZIP Directory: {temp_dir_path}")
 
     # unzip files
     with zipfile.ZipFile(input_path, "r") as zip_ref:
@@ -162,9 +177,26 @@ def run_log2timeline(temp_dir):
 
     # create log2timeline command
     command = ["log2timeline.py", "--parsers", "win7_slow", temp_dir, output_dir_path]
+    logging.info(f"log2timeline command: {command}")
 
     # run log2timeline
-    subprocess.run(command)
+    process = subprocess.Popen(command,
+                               stdout=subprocess.PIPE,
+                               stderr=subprocess.PIPE,
+                               universal_newlines=True, )
+    logging.info(f"log2timeline started at {datetime.now()} with PID {process.pid}")
+
+    # wait for log2timeline to finish
+    while True:
+        sleep(10)
+        return_code = process.poll()
+        if return_code is not None:
+            if return_code == 0:
+                logging.info("log2timeline finished successfully at " + str(datetime.now()))
+            else:
+                logging.error("log2timeline finished unsuccessfully at " + str(datetime.now()))
+                logging.error(process.stderr.read())
+            break
 
     # return path to output directory
     return output_dir
@@ -179,40 +211,68 @@ def run_psort(output_dir, output_file, start_time, end_time):
             command.extend(" AND ")
     if end_time is not None:
         command.extend(f"date > '{end_time}'")
+    logging.info(f"psort command: {command}")
 
     # run psort
-    subprocess.run(command)
+    process = subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+    logging.info("psort started at " + str(datetime.now()) + " with PID " + str(process.pid))
+
+    # wait for psort to finish
+    while True:
+        sleep(10)
+        return_code = process.poll()
+        if return_code is not None:
+            if return_code == 0:
+                logging.info("psort finished successfully at " + str(datetime.now()))
+            else:
+                logging.error("psort finished unsuccessfully at " + str(datetime.now()))
+                logging.error(process.stderr.read())
+            break
 
 
-def write_mail(mail):
-    # setup mail server
-    server_adress = "SMTPSERVER"
-    port = 25
-    sender = "SENDER"
-    receiver = mail
-    text = "Dies ist eine automatisch generierte Mail"
-    # todo: write mail
+def send_mail(send_to, files=None):
+    assert isinstance(send_to, list)
 
-    smtppObj = smtplib.SMTP(server_adress, port)
-    smtppObj.sendmail(sender, receiver, text)
-    smtppObj.quit()
+    msg = MIMEMultipart()
+    msg['From'] = "SENDER"
+    msg['To'] = COMMASPACE.join(send_to)
+    msg['Date'] = formatdate(localtime=True)
+    msg['Subject'] = "PLASO STATUS REPORT"
+
+    msg.attach(MIMEText("Plaso Erfolgreich abgeschlossen. Logfile befindet sich im Anhang."))
+
+    for path in files:
+        part = MIMEBase('application', "octet-stream")
+        with open(path, 'rb') as file:
+            part.set_payload(file.read())
+        encoders.encode_base64(part)
+        part.add_header('Content-Disposition',
+                        'attachment; filename={}'.format(Path(path).name))
+        msg.attach(part)
+
+    smtp = smtplib.SMTP("SMTPSERVEREINFÜGEN", 25) # todo: SMTP-Server einfügen
+    smtp.sendmail("send_from", send_to, msg.as_string()) # todo: send_from einfügen
+    smtp.quit()
 
 
 def main():
+    # start logging
+    logging.basicConfig(filename="log.log", level=logging.INFO)
+    logging.info("Start: " + str(datetime.now()))
+
     # parse arguments
     args = parse_arguments()
     args = check_arguments(args)
+
     # run plaso
     temp_dir = unzip_files(args.input, args.password)
     output_dir = run_log2timeline(Path(temp_dir.name))
     temp_dir.cleanup()
     run_psort(output_dir, args.output, args.start_time, args.end_time)
     output_dir.cleanup()
+
     # send mail
-    #write_mail(args.mail)
-
-
-    # todo: add logfile createion?
+    # write_mail(args.mail)
 
 
 if __name__ == '__main__':
