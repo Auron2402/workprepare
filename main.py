@@ -176,7 +176,7 @@ def run_log2timeline(temp_dir):
     output_dir_path = Path(output_dir.name)
 
     # create log2timeline command
-    command = ["log2timeline.py", "--parsers", "win7_slow", temp_dir, output_dir_path]
+    command = ["log2timeline.py", "--parsers", "win7_slow", Path(temp_dir), Path(output_dir_path)]
     logging.info(f"log2timeline command: {command}")
 
     # run log2timeline
@@ -204,7 +204,7 @@ def run_log2timeline(temp_dir):
 
 def run_psort(output_dir, output_file, start_time, end_time):
     # create psort command
-    command = ["psort.py", "-o", "l2tcsv", "-w", output_file, output_dir]
+    command = ["psort.py", "-o", "l2tcsv", "-w", Path(output_file), Path(output_dir)]
     if start_time is not None:
         command.extend(f"date < '{start_time}'")
         if end_time is not None:
@@ -231,7 +231,8 @@ def run_psort(output_dir, output_file, start_time, end_time):
 
 
 def send_mail(send_to, files=None):
-    assert isinstance(send_to, list)
+    if files is None:
+        files = ["logfile.log"]
 
     msg = MIMEMultipart()
     msg['From'] = "SENDER"
@@ -256,9 +257,7 @@ def send_mail(send_to, files=None):
 
 
 def main():
-    # start logging
-    logging.basicConfig(filename="log.log", level=logging.INFO)
-    logging.info("Start: " + str(datetime.now()))
+    start_logging()
 
     # parse arguments
     args = parse_arguments()
@@ -272,7 +271,17 @@ def main():
     output_dir.cleanup()
 
     # send mail
-    # write_mail(args.mail)
+    send_mail(args.mail)
+
+
+def start_logging():
+    # delete old logfile if it exists
+    if os.path.exists("logfile.log"):
+        os.remove("logfile.log")
+
+    # start logging
+    logging.basicConfig(filename="logfile.log", level=logging.INFO)
+    logging.info("Start: " + str(datetime.now()))
 
 
 if __name__ == '__main__':
